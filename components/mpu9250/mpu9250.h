@@ -1,0 +1,123 @@
+#ifndef MPU9250_H
+#define MPU9250_H
+#include "mpu6050.h"
+
+
+#include <esp_err.h>
+#include <i2cdev.h>
+
+#define AK8963_I2C_ADDRESS  0x0C
+#define TWO_COMPLEMENT_SIGN_MASK ((uint16_t)1<<15)
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct
+{
+  int16_t x;
+  int16_t y;
+  int16_t z;
+} ak8963_raw_magnetometer_t
+
+/**
+ * AK8963 magnetic data, uT
+ */
+typedef struct
+{
+  float x;
+  float y;
+  float z;
+} ak8963_magnetometer_t;
+
+typedef struct
+{
+  uint8_t data_ready:1;
+  uint8_t data_miss:1;
+  uint8_t null0:6;
+  ak8963_magnetometer_t raw_mag;
+  uint8_t null1:3;
+  uint8_t sensor_overflow:1;
+  uint8_t output_mode:1;
+  uint8_t null2:3;
+} ak8963_read_chunk_t;
+
+
+typedef enum {
+  AK8963_POWER_DOWN = 0,
+  AK8963_SINGLE_MEASUREMENT,
+  AK8963_CONTINUOUS_MEASUREMENT_1,
+  AK8963_CONTINUOUS_MEASUREMENT_2,
+  AK8963_EXTERNAL_TRIGGER,
+  AK8963_SELF_TEST,
+  AK8963_FUSE_ACCESS,
+} ak8963_mode_t;
+
+/**
+ * Device descriptor
+ */
+typedef struct{
+  mpu6050_dev_t *mpu6050_dev;
+  i2c_dev_t i2c_dev; //ak8963 i2c
+} mpu9250_dev_t;
+
+/**
+ * @brief Initialize device descriptor.
+ *
+ * @param dev Device descriptor
+ * @param addr Device I2C address
+ * @param port I2C port
+ * @param sda_gpio SDA GPIO
+ * @param scl_gpio SCL GPIO
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_init_desc(mpu9250_dev_t *dev, uint8_t addr, i2c_port_t port, gpio_num_t sda_gpio, gpio_num_t scl_gpio);
+
+/**
+ * @brief Free device descriptor.
+ *
+ * @param dev Device descriptor
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_free_desc(mpu9250_dev_t *dev);
+
+/**
+ * @brief Initialize device.
+ *
+ * @param dev Device descriptor
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_init(mpu9250_dev_t *dev);
+
+
+/**
+ * @brief Get 3-axis magnetometer readings.
+ *
+ *
+ * @param dev Device descriptor
+ * @param[out] mag Three-axis mag data, uT.
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_get_mag(mpu6050_dev_t *dev, ak8963_magnetometer_t*mag);
+
+/**
+ * @brief Get raw 3-axis magnetometer readings.
+ *
+ * @param dev Device descriptor
+ * @param[out] raw_mag Raw magnetometer data.
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_get_raw_mag(mpu6050_dev_t *dev, ak8963_raw_magnetometer_t *raw_mag);
+
+
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
+#endif
