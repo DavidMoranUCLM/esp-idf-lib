@@ -35,6 +35,7 @@
 
 #define AK8963_CNTL1_MODE_MASK 0x0F // Mode Selection
 #define AK8963_CNTL1_BIT_MASK  0x10 // Bit Setting
+#define AK8963_CNTL1_BIT_OFFSET 4
 
 #define AK8963_CNTL2_SRST_MASK 0x01 // Soft Reset
 
@@ -49,5 +50,7 @@
 #define AK8963_RESERVED_TS1_MASK 0xFF // Test register 1 (Do not use)
 #define AK8963_RESERVED_TS2_MASK 0xFF // Test register 2 (Do not use)
 #define AK8963_RESERVED_RSV_MASK 0xFF // Reserved register (Do not use)
+
+#define AK8963_WIA_VALUE 0x48
 
 #endif // AK963C_REGS_H

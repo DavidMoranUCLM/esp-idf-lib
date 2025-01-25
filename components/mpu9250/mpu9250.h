@@ -12,33 +12,34 @@
 extern "C" {
 #endif
 
-typedef struct
+typedef struct __attribute__((packed))
 {
   int16_t x;
   int16_t y;
   int16_t z;
-} ak8963_raw_magnetometer_t
+} ak8963_raw_magnetometer_t;
 
 /**
  * AK8963 magnetic data, uT
  */
-typedef struct
+typedef struct __attribute__((packed))
 {
   float x;
   float y;
   float z;
 } ak8963_magnetometer_t;
 
-typedef struct
+typedef struct __attribute__((packed))
 {
   uint8_t data_ready:1;
   uint8_t data_miss:1;
   uint8_t null0:6;
-  ak8963_magnetometer_t raw_mag;
+  ak8963_raw_magnetometer_t raw_mag;
   uint8_t null1:3;
   uint8_t sensor_overflow:1;
   uint8_t output_mode:1;
   uint8_t null2:3;
+  uint8_t control1;
 } ak8963_read_chunk_t;
 
 
@@ -50,13 +51,14 @@ typedef enum {
   AK8963_EXTERNAL_TRIGGER,
   AK8963_SELF_TEST,
   AK8963_FUSE_ACCESS,
+  AK8963_MAX_MODES
 } ak8963_mode_t;
 
 /**
  * Device descriptor
  */
 typedef struct{
-  mpu6050_dev_t *mpu6050_dev;
+  mpu6050_dev_t mpu6050_dev;
   i2c_dev_t i2c_dev; //ak8963 i2c
 } mpu9250_dev_t;
 
@@ -100,7 +102,7 @@ esp_err_t mpu9250_init(mpu9250_dev_t *dev);
  *
  * @return `ESP_OK` on success
  */
-esp_err_t mpu9250_get_mag(mpu6050_dev_t *dev, ak8963_magnetometer_t*mag);
+esp_err_t mpu9250_get_mag(mpu9250_dev_t *dev, ak8963_magnetometer_t*mag);
 
 /**
  * @brief Get raw 3-axis magnetometer readings.
@@ -110,9 +112,10 @@ esp_err_t mpu9250_get_mag(mpu6050_dev_t *dev, ak8963_magnetometer_t*mag);
  *
  * @return `ESP_OK` on success
  */
-esp_err_t mpu9250_get_raw_mag(mpu6050_dev_t *dev, ak8963_raw_magnetometer_t *raw_mag);
+esp_err_t mpu9250_get_raw_mag(mpu9250_dev_t *dev, ak8963_raw_magnetometer_t *raw_mag);
 
 
+esp_err_t mpu9250_tests(uint8_t addr, gpio_num_t sda, gpio_num_t scl);
 
 
 #ifdef __cplusplus

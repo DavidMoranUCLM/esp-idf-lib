@@ -882,7 +882,9 @@ esp_err_t mpu6050_set_multi_master_enabled(mpu6050_dev_t *dev, bool enabled);
  * @param dev Device descriptor
  * @param[out] enabled Wait-for-external-sensor-data enabled value.
  *
- * @return `ESP_OK` on success
+ * @return `ESP_OK` on successconfig AUTO_CONFIG_ADDR
+    bool "configure mpu6050 addr at run time"
+    default false
  */
 esp_err_t mpu6050_get_wait_for_external_sensor_enabled(mpu6050_dev_t *dev, bool *enabled);
 
