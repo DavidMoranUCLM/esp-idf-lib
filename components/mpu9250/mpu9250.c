@@ -3,9 +3,11 @@
 #include "mpu9250.h"
 #include "ak8963_regs.h"
 #include <math.h>
+#include "string.h"
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
 
 // Max 1MHz for esp-idf, but device supports up to 1.7Mhz
 #define I2C_FREQ_HZ (400000)
@@ -41,6 +43,33 @@ static uint8_t ak8963_mode_values[] = {
 static int16_t mag_adj[3];
 
 static const float mag_res = 4912.f / 32760.f;
+
+static struct{
+    float A[3][3]; //Rotation and deformation
+    float b[3]; //Bias
+} mag_cal_values;
+
+static struct {
+    float b[3]; //Bias
+    float s[3]; //Scale
+}acc_cal_values;
+
+static struct{
+    float b[3]; //Bias
+    float s[3]; //Scale
+}gyro_cal_values;
+
+
+
+
+static void mat_vec_prod(int m, int n, float A[m][n], float x[n], float y[m]) {
+    for (int i = 0; i < m; i++) {
+        y[i] = 0;
+        for (int j = 0; j < n; j++) {
+            y[i] += A[i][j] * x[j];
+        }
+    }
+}
 
 inline static float get_mag_value(float raw)
 {
@@ -276,6 +305,20 @@ static esp_err_t mpu9250_check_ak8963(mpu9250_dev_t *dev)
     return ESP_OK;
 }
 
+static esp_err_t apply_mag_cal(ak8963_magnetometer_t *mag){
+    ak8963_magnetometer_t mag0;
+
+    mag->x -= mag_cal_values.b[MPU6050_X_AXIS];
+    mag->y -= mag_cal_values.b[MPU6050_Y_AXIS];
+    mag->z -= mag_cal_values.b[MPU6050_Z_AXIS];
+
+    memcpy(&mag0, mag, sizeof(*mag));
+    mat_vec_prod(3,3,mag_cal_values.A,&mag0,mag);
+    
+
+    return ESP_OK;
+}
+
 esp_err_t mpu9250_init_desc(mpu9250_dev_t *dev, uint8_t addr, i2c_port_t port, gpio_num_t sda_gpio, gpio_num_t scl_gpio)
 {
     CHECK(mpu6050_init_desc(&dev->mpu6050_dev, addr, port, sda_gpio, scl_gpio));
@@ -289,7 +332,7 @@ esp_err_t mpu9250_init_desc(mpu9250_dev_t *dev, uint8_t addr, i2c_port_t port, g
 #if HELPER_TARGET_IS_ESP32
     dev->i2c_dev.cfg.master.clk_speed = I2C_FREQ_HZ;
 #endif
-
+    
     return i2c_dev_create_mutex(&dev->i2c_dev);
 }
 
@@ -308,8 +351,39 @@ esp_err_t mpu9250_init(mpu9250_dev_t *dev)
     CHECK(mpu9250_set_mag_out_bits(dev, 1));
     CHECK(mpu9250_set_mag_mode(dev, AK8963_CONTINUOUS_MEASUREMENT_2));
 
+    for(uint8_t i=0;i<3;i++){
+        for(uint8_t j=0;j<3;j++){
+            if(i==j){
+                mag_cal_values.A[i][j] = 1;
+            }
+            else{
+                mag_cal_values.A[i][j] = 0;
+            }
+        }
+    }
+    
+
     return ESP_OK;
 }
+
+esp_err_t mpu9250_set_mag_cal(float A[3][3], float b[3]){
+    memcpy(mag_cal_values.A, A, sizeof(mag_cal_values.A));
+    memcpy(mag_cal_values.b, b, sizeof(mag_cal_values.b));
+    return ESP_OK;
+}
+
+esp_err_t mpu9250_set_accel_cal(float s[3], float b[3]){
+    memcpy(acc_cal_values.b, b, sizeof(acc_cal_values.b));
+    memcpy(acc_cal_values.s, s, sizeof(acc_cal_values.s));
+    return ESP_OK;
+}
+
+esp_err_t mpu9250_set_gyro_cal(float s[3], float b[3]){
+    memcpy(gyro_cal_values.b, b, sizeof(gyro_cal_values.b));
+    memcpy(gyro_cal_values.s, s, sizeof(gyro_cal_values.s));
+    return ESP_OK;
+}
+
 
 esp_err_t mpu9250_get_raw_mag(mpu9250_dev_t *dev, ak8963_raw_magnetometer_t *raw_mag)
 {
@@ -321,7 +395,7 @@ esp_err_t mpu9250_get_raw_mag(mpu9250_dev_t *dev, ak8963_raw_magnetometer_t *raw
     I2C_DEV_CHECK(&dev->i2c_dev, i2c_dev_read_reg(&dev->i2c_dev, AK8963_ST1_ADDR, &chunk, sizeof(chunk)));
     I2C_DEV_GIVE_MUTEX(&dev->i2c_dev);
 
-    ESP_LOGI(TAG, "xhunk size: %d", sizeof(chunk));
+    ESP_LOGD(TAG, "xhunk size: %d", sizeof(chunk));
     esp_log_buffer_hex_internal(TAG, &chunk, sizeof(chunk), ESP_LOG_DEBUG);
 
     raw_mag->x = two_complement_2_bin(chunk.raw_mag.x);
@@ -350,20 +424,29 @@ esp_err_t mpu9250_get_mag(mpu9250_dev_t *dev, ak8963_magnetometer_t *mag)
     mag->y = get_mag_value(raw.y);
     mag->z = get_mag_value(raw.z);
 
+    apply_mag_cal(mag);
+
     return ESP_OK;
 }
 
-esp_err_t mpu9250_tests(uint8_t addr, gpio_num_t sda, gpio_num_t scl)
-{
-    mpu9250_dev_t dev = { 0 };
+esp_err_t mpu9250_get_motion(mpu9250_dev_t *dev, mpu6050_acceleration_t *data_accel, mpu6050_rotation_t *data_gyro, ak8963_magnetometer_t *data_mag){
+    CHECK(mpu6050_get_acceleration(&dev->mpu6050_dev, data_accel));
+    CHECK(mpu6050_get_rotation(&dev->mpu6050_dev, data_gyro));
+    CHECK(mpu9250_get_mag(dev, data_mag));
 
+    return ESP_OK;
+}
+
+
+esp_err_t mpu9250_tests(mpu9250_dev_t *dev,uint8_t addr, gpio_num_t sda, gpio_num_t scl)
+{
     ESP_LOGI(TAG, "MPU9250 desc init try 0");
-    ESP_ERROR_CHECK(mpu9250_init_desc(&dev, addr, 0, sda, scl));
+    ESP_ERROR_CHECK(mpu9250_init_desc(dev, addr, 0, sda, scl));
     ESP_LOGI(TAG, "MPU9250 desc init success");
 
     while (1)
     {
-        esp_err_t res = i2c_dev_probe(&dev.mpu6050_dev.i2c_dev, I2C_DEV_WRITE);
+        esp_err_t res = i2c_dev_probe(&dev->mpu6050_dev.i2c_dev, I2C_DEV_WRITE);
         if (res != ESP_OK)
         {
             ESP_LOGE(TAG, "MPU60x0 not found %s", esp_err_to_name(res));
@@ -371,7 +454,7 @@ esp_err_t mpu9250_tests(uint8_t addr, gpio_num_t sda, gpio_num_t scl)
             continue;
         }
         ESP_LOGI(TAG, "Found MPU60x0 device");
-        res = i2c_dev_probe(&dev.i2c_dev, I2C_DEV_WRITE);
+        res = i2c_dev_probe(&dev->i2c_dev, I2C_DEV_WRITE);
         if (res != ESP_OK)
         {
             ESP_LOGE(TAG, "AK8963 not found: %s", esp_err_to_name(res));
@@ -383,10 +466,13 @@ esp_err_t mpu9250_tests(uint8_t addr, gpio_num_t sda, gpio_num_t scl)
     }
 
     ESP_LOGI(TAG, "MPU9250 init try...");
-    ESP_ERROR_CHECK(mpu9250_init(&dev));
+    ESP_ERROR_CHECK(mpu9250_init(dev));
     ESP_LOGI(TAG, "MPU9250 init Success\n");
 
-    CHECK(mpu9250_check_ak8963(&dev));
+    if(mpu9250_check_ak8963(dev) != ESP_OK){
+        mpu9250_free_desc(dev);
+        return ESP_FAIL;
+    }
 
     // Two Complement Tests
 
@@ -426,7 +512,7 @@ esp_err_t mpu9250_tests(uint8_t addr, gpio_num_t sda, gpio_num_t scl)
     //     vTaskDelay(pdMS_TO_TICKS(1000));
     // }
 
-    mpu9250_free_desc(&dev);
+    
 
     return ESP_OK;
 }

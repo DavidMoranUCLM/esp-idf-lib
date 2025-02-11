@@ -114,8 +114,32 @@ esp_err_t mpu9250_get_mag(mpu9250_dev_t *dev, ak8963_magnetometer_t*mag);
  */
 esp_err_t mpu9250_get_raw_mag(mpu9250_dev_t *dev, ak8963_raw_magnetometer_t *raw_mag);
 
+/**
+ * @brief Get raw 9-axis motion sensor readings (accel/gyro/mag).
+ *
+ * Retrieves all currently available motion sensor values.
+ *
+ * @param dev Device descriptor
+ * @param[out] data_accel acceleration struct.
+ * @param[out] data_gyro rotation struct.
+ * @param[out] data_mag magnetometer struct.
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_get_motion(mpu9250_dev_t *dev, mpu6050_acceleration_t *data_accel, mpu6050_rotation_t *data_gyro, ak8963_magnetometer_t *data_mag);
 
-esp_err_t mpu9250_tests(uint8_t addr, gpio_num_t sda, gpio_num_t scl);
+
+
+/**
+ * @brief Performs basic tests on chip
+ *
+ * @param addr Device address
+ * @param sda SDA I2C Pin
+ * @param scl SCL I2C Pin
+ * 
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_tests(mpu9250_dev_t *dev, uint8_t addr, gpio_num_t sda, gpio_num_t scl);
 
 
 #ifdef __cplusplus
