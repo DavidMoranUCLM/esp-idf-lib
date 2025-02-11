@@ -92,6 +92,38 @@ esp_err_t mpu9250_free_desc(mpu9250_dev_t *dev);
  */
 esp_err_t mpu9250_init(mpu9250_dev_t *dev);
 
+/**
+ * @brief Set calibration values for magnetometer
+ *
+ *
+ * @param A Rotation and deformation matrix (Soft-hard correction)
+ * @param b Bias
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_set_mag_cal(float A[3][3], float b[3]);
+
+/**
+ * @brief Set calibration values for accelerometer
+ *
+ *
+ * @param s Scale
+ * @param b Bias
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_set_accel_cal(float s[3], float b[3]);
+
+/**
+ * @brief Set calibration values for gyrometer
+ *
+ *
+ * @param s Scale
+ * @param b Bias
+ *
+ * @return `ESP_OK` on success
+ */
+esp_err_t mpu9250_set_gyro_cal(float s[3], float b[3]);
 
 /**
  * @brief Get 3-axis magnetometer readings.

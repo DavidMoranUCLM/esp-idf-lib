@@ -52,10 +52,12 @@
 #include <freertos/task.h>
 
 // Max 1MHz for esp-idf, but device supports up to 1.7Mhz
-#define I2C_FREQ_HZ (1000000)
+#define I2C_FREQ_HZ (400000)
 
 #define CHECK(x) do { esp_err_t __; if ((__ = x) != ESP_OK) return __; } while (0)
 #define CHECK_ARG(VAL) do { if (!(VAL)) return ESP_ERR_INVALID_ARG; } while (0)
+
+#define DEG2RAD (3.14f/180.f)
 
 static const char *TAG = "mpu6050";
 
@@ -224,7 +226,6 @@ esp_err_t mpu6050_free_desc(mpu6050_dev_t *dev)
 esp_err_t mpu6050_init(mpu6050_dev_t *dev)
 {
     CHECK_ARG(dev);
-
     CHECK(mpu6050_set_clock_source(dev, MPU6050_CLOCK_PLL_X));
     CHECK(mpu6050_set_full_scale_gyro_range(dev, MPU6050_GYRO_RANGE_250));
     CHECK(mpu6050_set_full_scale_accel_range(dev, MPU6050_ACCEL_RANGE_2));
@@ -865,9 +866,9 @@ esp_err_t mpu6050_get_acceleration(mpu6050_dev_t *dev, mpu6050_acceleration_t *a
     mpu6050_raw_acceleration_t raw;
     CHECK(mpu6050_get_raw_acceleration(dev, &raw));
 
-    accel->x = get_accel_value(dev, raw.x);
-    accel->y = get_accel_value(dev, raw.y);
-    accel->z = get_accel_value(dev, raw.z);
+    accel->x = get_accel_value(dev, raw.x)*9.81;
+    accel->y = get_accel_value(dev, raw.y)*9.81;
+    accel->z = get_accel_value(dev, raw.z)*9.81;
 
     return ESP_OK;
 }
@@ -915,9 +916,9 @@ esp_err_t mpu6050_get_rotation(mpu6050_dev_t *dev, mpu6050_rotation_t *gyro)
     mpu6050_raw_rotation_t raw;
     CHECK(mpu6050_get_raw_rotation(dev, &raw));
 
-    gyro->x = get_gyro_value(dev, raw.x);
-    gyro->y = get_gyro_value(dev, raw.y);
-    gyro->z = get_gyro_value(dev, raw.z);
+    gyro->x = get_gyro_value(dev, raw.x)*DEG2RAD;
+    gyro->y = get_gyro_value(dev, raw.y)*DEG2RAD;
+    gyro->z = get_gyro_value(dev, raw.z)*DEG2RAD;
 
     return ESP_OK;
 }
@@ -1391,8 +1392,8 @@ esp_err_t mpu6050_calibrate(mpu6050_dev_t *dev, float *accel_bias_res, float *gy
 
     // Push accelerometer biases to hardware registers:
     CHECK(mpu6050_set_accel_offset(dev, MPU6050_X_AXIS, ((int16_t)tmp_data[0]) << 8 | tmp_data[1]));
-    CHECK(mpu6050_set_accel_offset(dev, MPU6050_X_AXIS, ((int16_t)tmp_data[2]) << 8 | tmp_data[3]));
-    CHECK(mpu6050_set_accel_offset(dev, MPU6050_X_AXIS, ((int16_t)tmp_data[4]) << 8 | tmp_data[5]));
+    CHECK(mpu6050_set_accel_offset(dev, MPU6050_Y_AXIS, ((int16_t)tmp_data[2]) << 8 | tmp_data[3]));
+    CHECK(mpu6050_set_accel_offset(dev, MPU6050_Z_AXIS, ((int16_t)tmp_data[4]) << 8 | tmp_data[5]));
 
     // Output scaled accelerometer biases for subtraction in the main program:
     accel_bias_res[0] = (float)accel_bias[0] / (float)accel_sensitivity;
