@@ -60,7 +60,21 @@ static struct{
 }gyro_cal_values;
 
 
+//static const float magRotmat[3][3] = {{0,1,0},{1,0,0},{0,0,-1}}; //Magnetometer to MPU6050 reference frame rotation matrix.
 
+
+/**
+ * @brief 
+ * 
+ * @param v[in/out] 
+ */
+static void magRef2MpuRef(ak8963_magnetometer_t *v){
+    float tmp = v->x;
+    v->x = v->y;
+    v->y = tmp;
+
+    v->z = -v->z;
+}
 
 static void mat_vec_prod(int m, int n, float A[m][n], float x[n], float y[m]) {
     for (int i = 0; i < m; i++) {
@@ -424,7 +438,9 @@ esp_err_t mpu9250_get_mag(mpu9250_dev_t *dev, ak8963_magnetometer_t *mag)
     mag->y = get_mag_value(raw.y);
     mag->z = get_mag_value(raw.z);
 
+    magRef2MpuRef(mag);
     apply_mag_cal(mag);
+    
 
     return ESP_OK;
 }
