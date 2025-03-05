@@ -70,7 +70,7 @@ static struct{
  */
 static void magRef2MpuRef(ak8963_magnetometer_t *v){
     float tmp = v->x;
-    v->x = v->y;
+    v->x = -v->y;
     v->y = tmp;
 
     v->z = -v->z;

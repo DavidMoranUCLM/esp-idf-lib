@@ -867,7 +867,7 @@ esp_err_t mpu6050_get_acceleration(mpu6050_dev_t *dev, mpu6050_acceleration_t *a
     CHECK(mpu6050_get_raw_acceleration(dev, &raw));
 
     accel->x = get_accel_value(dev, raw.x)*9.81;
-    accel->y = get_accel_value(dev, raw.y)*9.81;
+    accel->y = -get_accel_value(dev, raw.y)*9.81;
     accel->z = get_accel_value(dev, raw.z)*9.81;
 
     return ESP_OK;
@@ -916,9 +916,9 @@ esp_err_t mpu6050_get_rotation(mpu6050_dev_t *dev, mpu6050_rotation_t *gyro)
     mpu6050_raw_rotation_t raw;
     CHECK(mpu6050_get_raw_rotation(dev, &raw));
 
-    gyro->x = get_gyro_value(dev, raw.x)*DEG2RAD;
+    gyro->x = -get_gyro_value(dev, raw.x)*DEG2RAD;
     gyro->y = get_gyro_value(dev, raw.y)*DEG2RAD;
-    gyro->z = get_gyro_value(dev, raw.z)*DEG2RAD;
+    gyro->z = -get_gyro_value(dev, raw.z)*DEG2RAD;
 
     return ESP_OK;
 }
