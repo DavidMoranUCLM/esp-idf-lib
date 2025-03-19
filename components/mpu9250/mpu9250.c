@@ -59,6 +59,12 @@ static struct{
     float s[3]; //Scale
 }gyro_cal_values;
 
+static struct {
+    float x;
+    float y;
+    float z;
+    uint8_t windowSize;
+}magMean;
 
 //static const float magRotmat[3][3] = {{0,1,0},{1,0,0},{0,0,-1}}; //Magnetometer to MPU6050 reference frame rotation matrix.
 
@@ -319,6 +325,19 @@ static esp_err_t mpu9250_check_ak8963(mpu9250_dev_t *dev)
     return ESP_OK;
 }
 
+static int apply_mag_mean(ak8963_magnetometer_t *mag){
+        
+    magMean.x = (mag->x+(magMean.windowSize-1)*magMean.x)/(magMean.windowSize);
+    magMean.y = (mag->y+(magMean.windowSize-1)*magMean.y)/(magMean.windowSize);
+    magMean.z = (mag->z+(magMean.windowSize-1)*magMean.z)/(magMean.windowSize);
+
+    mag->x = magMean.x;
+    mag->y = magMean.y;
+    mag->z = magMean.z;
+
+    return ESP_OK;
+}
+
 static esp_err_t apply_mag_cal(ak8963_magnetometer_t *mag){
     ak8963_magnetometer_t mag0;
 
@@ -375,6 +394,11 @@ esp_err_t mpu9250_init(mpu9250_dev_t *dev)
             }
         }
     }
+
+    magMean.windowSize = 10;
+    magMean.x = 0;
+    magMean.y = 0;
+    magMean.z = 0;
     
 
     return ESP_OK;
@@ -440,6 +464,7 @@ esp_err_t mpu9250_get_mag(mpu9250_dev_t *dev, ak8963_magnetometer_t *mag)
 
     magRef2MpuRef(mag);
     apply_mag_cal(mag);
+    apply_mag_mean(mag);
     
 
     return ESP_OK;
